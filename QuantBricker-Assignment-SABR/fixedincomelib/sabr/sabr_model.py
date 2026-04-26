@@ -386,7 +386,11 @@ class SABRModelComponent(ModelComponent):
         - The output should be a dictionary mapping SABRParameters -> float
         """
         # TODO: implement
-        pass
+        return {
+            param: float(interp.interpolate(expiry, tenor))
+            for param, interp in self.interpolator_.items()
+        }
+        
     
     def get_sabr_parameter_gradient_wrt_state(
         self,
@@ -407,8 +411,23 @@ class SABRModelComponent(ModelComponent):
         - If accumulate=True, add to gradient_vector; otherwise overwrite it
         """
         # TODO: implement
-        pass
-            
-            
+        ordered_params = [
+        SABRParameters.NV,
+        SABRParameters.BETA,
+        SABRParameters.NU,
+        SABRParameters.RHO,
+    ]
 
+        grad_parts = []
+        for i, param in enumerate(ordered_params):
+            dV_dgrid = self.interpolator_[param].gradient_wrt_ordinate(expiry, tenor)
+            grad_parts.append(scalers[i] * np.asarray(dV_dgrid, dtype=float).reshape(-1))
 
+        full_grad = np.concatenate(grad_parts)
+
+        if accumulate:
+            gradient_vector[:] = gradient_vector + full_grad
+        else:
+            gradient_vector[:] = full_grad
+
+       

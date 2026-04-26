@@ -164,6 +164,7 @@ class ProductRFRCapletFloorlet(Product):
     @property
     def long_or_short(self):
         return self.long_or_short_
+    
 
     def accept(self, visitor: ProductVisitor):
         return visitor.visit(self)
@@ -280,12 +281,26 @@ class ProductRFRCapFloor(Product):
         # Build one ProductRFRCapletFloorlet for each accrual period in the schedule,
         # and append it to self.caplets_.
         for _, row in schedule.iterrows():
-            pass
+            caplet = ProductRFRCapletFloorlet(
+                effective_date=row["StartDate"],
+                expiry_offset="0D",
+                term_or_termination_date=TermOrTerminationDate(row["EndDate"]),
+                payment_date=row["PaymentDate"],
+                on_index=self.on_index_str_,
+                strike=self.strike_,
+                notional=self.notional_,
+                cap_or_floor=self.cap_or_floor_,
+                accrual_basis=self.accrual_basis_,
+                long_or_short=self.long_or_short_,
+            )
+            self.caplets_.append(caplet)
         
         if len(self.caplets_) > 0:
             self.last_date_ = self.caplets_[-1].payment_date
         else:
             self.last_date_ = self.termination_date_
+            
+        self.accrual_ = sum(c.accrual for c in self.caplets_)
     
     @property
     def effective_date(self) -> Date:
@@ -342,6 +357,17 @@ class ProductRFRCapFloor(Product):
     @property
     def currency(self) -> Currency:
         return self.currency_
+    @property
+    def expiry_date(self) -> Date:
+        return self.caplets_[0].expiry_date
+
+    @property
+    def payment_date(self) -> Date:
+        return self.caplets_[-1].payment_date
+
+    @property
+    def accrual(self) -> float:
+        return sum(c.accrual for c in self.caplets_)
     
     def num_caplets(self) -> int:
         return len(self.caplets_)
